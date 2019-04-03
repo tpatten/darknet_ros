@@ -4,6 +4,10 @@
   <!-- Console launch prefix -->
   <arg name="launch_prefix" default=""/>
 
+  <!-- Camera topic name. -->
+  <arg name="continuous_detection" default="true" />
+  <arg name="display_in_window" default="false" />
+
   <!-- Config and weights folder. -->
   <arg name="yolo_weights_path"          default="$(find darknet_ros)/yolo_network_config/weights"/>
   <arg name="yolo_config_path"           default="$(find darknet_ros)/yolo_network_config/cfg"/>
@@ -20,5 +24,7 @@
   <node pkg="darknet_ros" type="darknet_ros" name="darknet_ros" output="screen" launch-prefix="$(arg launch_prefix)">
     <param name="weights_path"          value="$(arg yolo_weights_path)" />
     <param name="config_path"           value="$(arg yolo_config_path)" />
+    <param name="continuous_detection" type="bool" value="$(arg continuous_detection)"/>
+    <param name="display_in_window" type="bool" value="$(arg display_in_window)"/>
   </node>
 </launch>

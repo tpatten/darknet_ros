@@ -18,6 +18,22 @@ std::string darknetFilePath_ = DARKNET_FILE_PATH;
 #error Path of darknet repository is not defined in CMakeLists.txt.
 #endif
 
+
+void get_image_cv(image p, IplImage *disp)
+{
+  int x,y,k;
+  if(p.c == 3) rgbgr_image(p);
+  char buff[256];
+  int step = disp->widthStep;
+  for(y = 0; y < p.h; ++y){
+    for(x = 0; x < p.w; ++x){
+      for(k= 0; k < p.c; ++k){
+        disp->imageData[y*step + x*p.c + k] = (unsigned char)(p.data[k*p.h*p.w + y*p.w + x]*255);
+      }
+    }
+  }
+}
+
 namespace darknet_ros {
 
 char *cfg;
@@ -137,8 +153,9 @@ void YoloObjectDetector::init()
   std::string detectionImageTopicName;
   int detectionImageQueueSize;
   bool detectionImageLatch;
+  bool doContinuousDetection;
 
-  nodeHandle_.param("subscribers/camera_reading/topic", cameraTopicName, std::string("/camera/image_raw"));
+  nodeHandle_.param("subscribers/camera_reading/topic", cameraQueueSize, 1);
   nodeHandle_.param("subscribers/camera_reading/queue_size", cameraQueueSize, 1);
   nodeHandle_.param("publishers/object_detector/topic", objectDetectorTopicName, std::string("found_object"));
   nodeHandle_.param("publishers/object_detector/queue_size", objectDetectorQueueSize, 1);
@@ -149,28 +166,20 @@ void YoloObjectDetector::init()
   nodeHandle_.param("publishers/detection_image/topic", detectionImageTopicName, std::string("detection_image"));
   nodeHandle_.param("publishers/detection_image/queue_size", detectionImageQueueSize, 1);
   nodeHandle_.param("publishers/detection_image/latch", detectionImageLatch, true);
+  nodeHandle_.param("continuous_detection", doContinuousDetection, false);
 
-  imageSubscriber_ = imageTransport_.subscribe(cameraTopicName, cameraQueueSize,
-                                               &YoloObjectDetector::cameraCallback, this);
-  objectPublisher_ = nodeHandle_.advertise<std_msgs::Int8>(objectDetectorTopicName,
-                                                           objectDetectorQueueSize,
-                                                           objectDetectorLatch);
-  boundingBoxesPublisher_ = nodeHandle_.advertise<darknet_ros_msgs::BoundingBoxes>(
-      boundingBoxesTopicName, boundingBoxesQueueSize, boundingBoxesLatch);
-  detectionImagePublisher_ = nodeHandle_.advertise<sensor_msgs::Image>(detectionImageTopicName,
-                                                                       detectionImageQueueSize,
-                                                                       detectionImageLatch);
+  if (doContinuousDetection)
+    imageSubscriber_ = imageTransport_.subscribe(cameraTopicName, 1, &YoloObjectDetector::cameraCallback, this);
+  objectPublisher_ = nodeHandle_.advertise<std_msgs::Int8>(objectDetectorTopicName, objectDetectorQueueSize, objectDetectorLatch);
+  boundingBoxesPublisher_ = nodeHandle_.advertise<darknet_ros_msgs::BoundingBoxes>(boundingBoxesTopicName, boundingBoxesQueueSize, boundingBoxesLatch);
+  detectionImagePublisher_ = nodeHandle_.advertise<sensor_msgs::Image>(detectionImageTopicName, detectionImageQueueSize, detectionImageLatch);
 
   // Action servers.
   std::string checkForObjectsActionName;
-  nodeHandle_.param("actions/camera_reading/topic", checkForObjectsActionName,
-                    std::string("check_for_objects"));
-  checkForObjectsActionServer_.reset(
-      new CheckForObjectsActionServer(nodeHandle_, checkForObjectsActionName, false));
-  checkForObjectsActionServer_->registerGoalCallback(
-      boost::bind(&YoloObjectDetector::checkForObjectsActionGoalCB, this));
-  checkForObjectsActionServer_->registerPreemptCallback(
-      boost::bind(&YoloObjectDetector::checkForObjectsActionPreemptCB, this));
+  nodeHandle_.param("actions/camera_reading/topic", checkForObjectsActionName, std::string("check_for_objects"));
+  checkForObjectsActionServer_.reset(new CheckForObjectsActionServer(nodeHandle_, checkForObjectsActionName, false));
+  checkForObjectsActionServer_->registerGoalCallback(boost::bind(&YoloObjectDetector::checkForObjectsActionGoalCB, this));
+  checkForObjectsActionServer_->registerPreemptCallback(boost::bind(&YoloObjectDetector::checkForObjectsActionPreemptCB, this));
   checkForObjectsActionServer_->start();
 }
 
@@ -264,15 +273,6 @@ bool YoloObjectDetector::publishDetectionImage(const cv::Mat& detectionImage)
   ROS_DEBUG("Detection image has been published.");
   return true;
 }
-
-// double YoloObjectDetector::getWallTime()
-// {
-//   struct timeval time;
-//   if (gettimeofday(&time, NULL)) {
-//     return 0;
-//   }
-//   return (double) time.tv_sec + (double) time.tv_usec * .000001;
-// }
 
 int YoloObjectDetector::sizeNetwork(network *net)
 {
@@ -533,6 +533,8 @@ void YoloObjectDetector::yolo()
       demoTime_ = what_time_is_it_now();
       if (viewImage_) {
         displayInThread(0);
+      } else {
+        get_image_cv(buff_[(buffIndex_ + 1)%3], ipl_);
       }
       publishInThread();
     } else {
