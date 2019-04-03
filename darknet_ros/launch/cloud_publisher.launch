@@ -3,7 +3,7 @@
 
   <!-- Parameters -->
   <arg name="hostname" default="localhost" />
-  <arg name="filename" default="/home/tpatten/Data/NYU/pcds/0001.pcd" />
+  <arg name="filename" default="$(find darknet_ros)/data/0001.pcd" />
   <arg name="cloud_topic" default="/camera/depth_registered/points" />
   <arg name="rgb_topic" default="/camera/rgb/image" />
 
