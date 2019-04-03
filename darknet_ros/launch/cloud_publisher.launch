@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Parameters -->
+  <arg name="hostname" default="localhost" />
+  <arg name="filename" default="/home/tpatten/Data/NYU/pcds/0001.pcd" />
+  <arg name="cloud_topic" default="/camera/depth_registered/points" />
+  <arg name="rgb_topic" default="/camera/rgb/image" />
+
+  <node pkg="tf" type="static_transform_publisher" name="camera_armbase_broadcaster"
+        args="0.0 0.0 0.5 -1.57 -0.015 -2.13 base_link camera_depth_optical_frame 100" />
+
+   <!-- Push grasping -->
+  <node name="cloud_publisher" pkg="darknet_ros" type="cloud_publisher" respawn="false" output="screen">
+    <param name="filename" type="string" value="$(arg filename)"/>
+    <param name="cloud_topic" type="string" value="$(arg cloud_topic)"/>
+    <param name="rgb_topic" type="string" value="$(arg rgb_topic)"/>
+  </node>
+
+</launch>

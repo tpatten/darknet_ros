@@ -47,6 +47,10 @@ ENDIF ( X11_FOUND )
 find_package(Boost REQUIRED COMPONENTS thread)
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
+find_package(PCL 1.7 REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 find_package(catkin REQUIRED
   COMPONENTS
     cv_bridge
@@ -149,6 +153,7 @@ if (CUDA_FOUND)
     ${OpenCV_LIBRARIES}
     ${catkin_LIBRARIES}
     ${OpenCV_LIBS}
+    ${PCL_LIBRARIES}
   )
 
   cuda_add_executable(${PROJECT_NAME}
@@ -203,6 +208,7 @@ else()
     ${OpenCV_LIBRARIES}
     ${catkin_LIBRARIES}
     ${OpenCV_LIBS}
+    ${PCL_LIBRARIES}
   )
 
   add_executable(${PROJECT_NAME}
@@ -214,6 +220,12 @@ endif()
 target_link_libraries(${PROJECT_NAME}
   ${PROJECT_NAME}_lib
 )
+
+## NEW ##
+add_executable(cloud_publisher src/cloud_publisher.cpp)
+target_link_libraries(cloud_publisher ${PROJECT_NAME}_lib)
+#add_dependencies(cloud_publisher ${catkin_EXPORTED_TARGETS})
+#########
 
 add_dependencies(${PROJECT_NAME}_lib
   darknet_ros_msgs_generate_messages_cpp
